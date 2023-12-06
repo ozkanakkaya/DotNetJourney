@@ -28,11 +28,13 @@ namespace FreeCourse.Services.Catalog.Services
         {
             var courses = await _courseCollection.Find(course => true).ToListAsync();
 
+            var categories = await _categoryCollection.Find(_ => true).ToListAsync();
+
             if (courses.Any())
             {
                 foreach (var course in courses)
                 {
-                    course.Category = await _categoryCollection.Find<Category>(x => x.Id == course.CategoryId).FirstAsync();
+                    course.Category = categories.FirstOrDefault(category => category.Id == course.CategoryId);
                 }
             }
             else
