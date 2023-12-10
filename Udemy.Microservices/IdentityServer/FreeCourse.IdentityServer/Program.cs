@@ -2,8 +2,11 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 
+using FreeCourse.IdentityServer.Data;
+using FreeCourse.IdentityServer.Models;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -37,23 +40,26 @@ namespace FreeCourse.IdentityServer
 
             try
             {
-                var seed = args.Contains("/seed");
-                if (seed)
-                {
-                    args = args.Except(new[] { "/seed" }).ToArray();
-                }
 
                 var host = CreateHostBuilder(args).Build();
 
-                if (seed)
+                using (var scope = host.Services.CreateScope()) // Servis kapsamı oluşturuluyor.
                 {
-                    Log.Information("Seeding database...");
-                    var config = host.Services.GetRequiredService<IConfiguration>();
-                    var connectionString = config.GetConnectionString("DefaultConnection");
-                    SeedData.EnsureSeedData(connectionString);
-                    Log.Information("Done seeding database.");
-                    return 0;
+                    var serviceProvider = scope.ServiceProvider; // Servis sağlayıcı alınıyor.
+
+                    var applicationDbContext = serviceProvider.GetRequiredService<ApplicationDbContext>(); // Uygulama veritabanı bağlamı alınıyor.
+
+                    applicationDbContext.Database.Migrate(); // Veritabanı göçleri yapılıyor, mevcut şema güncelleniyor.
+
+                    var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>(); // Kullanıcı yöneticisi alınıyor.
+
+                    if (!userManager.Users.Any()) // Eğer hiç kullanıcı yoksa:
+                    {
+                        // Yönetici kullanıcı oluşturuluyor; kullanıcı adı, e-posta ve şehir bilgileriyle beraber.
+                        userManager.CreateAsync(new ApplicationUser { UserName = "ozkanakkaya", Email = "ozkky@hotmail.com", City = "İstanbul" }, "Password12*").Wait();
+                    }
                 }
+
 
                 Log.Information("Starting host...");
                 host.Run();
